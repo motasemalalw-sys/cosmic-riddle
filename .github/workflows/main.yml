@@ -6,9 +6,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
         node-version: 18
     - name: Pull from Replit
@@ -18,18 +18,25 @@ jobs:
         git remote add replit https://x-token-auth:${{ secrets.REPLIT_TOKEN }}@://replit.com || true
         git pull replit main --allow-unrelated-histories || true
     - name: Install Dependencies
-      run: npm install || true
+      run: npm install --legacy-peer-deps || true
     - name: Build Web App
       run: npm run build || true
     - name: Build Android APK with Capacitor
       run: |
-        npm install @capacitor/cli @capacitor/android || true
-        npx cap init "Cosmic Riddle" "com.cosmic.riddle" --web-dir=dist || true
+        npm install -g @capacitor/cli @capacitor/android
+        npx cap init "Cosmic Riddle" "com.cosmic.riddle" --web-dir=dist || npx cap init "Cosmic Riddle" "com.cosmic.riddle" --web-dir=www || true
         npx cap add android || true
         npx cap sync || true
-        cd android && ./gradlew assembleDebug
+        if [ -d "android" ]; then
+          cd android && ./gradlew assembleDebug
+        else
+          echo "Android folder not found, looking for alternative build path"
+          exit 1
+        fi
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
         name: cosmic-riddle-apk
-        path: android/app/build/outputs/apk/debug/app-debug.apk
+        path: |
+          android/app/build/outputs/apk/debug/app-debug.apk
+          **/build/outputs/apk/debug/*.apk
