@@ -10,7 +10,7 @@ jobs:
     - name: Set up Java 17
       uses: actions/setup-java@v4
       with:
-        distribution: 'zulu'
+        distribution: 'temurin'
         java-version: '17'
     - name: Set up Node.js
       uses: actions/setup-node@v4
@@ -53,11 +53,13 @@ jobs:
         npx cap add android || true
         npx cap sync || true
         if [ -d "android" ]; then
-          cd android && chmod +x gradlew && ./gradlew assembleDebug
+          cd android
+          rm -rf .gradle
+          chmod +x gradlew
+          ./gradlew clean assembleDebug --no-daemon
         else
-          cd android || true
-          chmod +x gradlew || true
-          ./gradlew assembleDebug || true
+          echo "Android folder setup failed"
+          exit 1
         fi
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
