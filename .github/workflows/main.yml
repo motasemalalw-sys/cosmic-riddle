@@ -21,16 +21,26 @@ jobs:
       run: npm install --legacy-peer-deps || true
     - name: Build Web App
       run: npm run build || true
+    - name: Detect and Create Web Dir
+      run: |
+        if [ -d "dist" ]; then echo "WEB_DIR=dist" >> $GITHUB_ENV;
+        elif [ -d "build" ]; then echo "WEB_DIR=build" >> $GITHUB_ENV;
+        elif [ -d "www" ]; then echo "WEB_DIR=www" >> $GITHUB_ENV;
+        elif [ -d "public" ]; then echo "WEB_DIR=public" >> $GITHUB_ENV;
+        else
+          mkdir -p www && cp index.html www/ || true
+          echo "WEB_DIR=www" >> $GITHUB_ENV;
+        fi
     - name: Build Android APK with Capacitor
       run: |
         npm install -g @capacitor/cli @capacitor/android
-        npx cap init "Cosmic Riddle" "com.cosmic.riddle" --web-dir=dist || npx cap init "Cosmic Riddle" "com.cosmic.riddle" --web-dir=www || true
+        npx cap init "Cosmic Riddle" "com.cosmic.riddle" --web-dir=${{ env.WEB_DIR }} --confirm || true
         npx cap add android || true
         npx cap sync || true
         if [ -d "android" ]; then
           cd android && ./gradlew assembleDebug
         else
-          echo "Android folder not found, looking for alternative build path"
+          echo "Android folder setup failed"
           exit 1
         fi
     - name: Upload APK Artifact
@@ -40,3 +50,4 @@ jobs:
         path: |
           android/app/build/outputs/apk/debug/app-debug.apk
           **/build/outputs/apk/debug/*.apk
+          **/*.apk
