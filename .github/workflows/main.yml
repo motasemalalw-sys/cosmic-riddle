@@ -17,24 +17,34 @@ jobs:
         git config --global user.email "agent@replit.com"
         git remote add replit https://x-token-auth:${{ secrets.REPLIT_TOKEN }}@://replit.com || true
         git pull replit main --allow-unrelated-histories || true
-    - name: Install Dependencies
-      run: npm install --legacy-peer-deps || true
-    - name: Build Web App
-      run: npm run build || true
-    - name: Detect and Create Web Dir
+    - name: Find Project Root
       run: |
-        if [ -d "dist" ]; then echo "WEB_DIR=dist" >> $GITHUB_ENV;
-        elif [ -d "build" ]; then echo "WEB_DIR=build" >> $GITHUB_ENV;
-        elif [ -d "www" ]; then echo "WEB_DIR=www" >> $GITHUB_ENV;
-        elif [ -d "public" ]; then echo "WEB_DIR=public" >> $GITHUB_ENV;
+        SUB_DIR=$(find . -name "package.json" -not -path "*/node_modules/*" -exec dirname {} \;)
+        echo "PROJECT_DIR=$SUB_DIR" >> $GITHUB_ENV
+    - name: Install Dependencies
+      run: |
+        cd ${{ env.PROJECT_DIR }}
+        npm install --legacy-peer-deps || true
+    - name: Build Web App
+      run: |
+        cd ${{ env.PROJECT_DIR }}
+        npm run build || true
+    - name: Ensure Web Directory
+      run: |
+        cd ${{ env.PROJECT_DIR }}
+        if [ -d "dist" ]; then echo "WEB_TARGET=dist" >> $GITHUB_ENV;
+        elif [ -d "build" ]; then echo "WEB_TARGET=build" >> $GITHUB_ENV;
+        elif [ -d "www" ]; then echo "WEB_TARGET=www" >> $GITHUB_ENV;
         else
-          mkdir -p www && cp index.html www/ || true
-          echo "WEB_DIR=www" >> $GITHUB_ENV;
+          mkdir -p www && echo "<html><body>Cosmic Riddle</body></html>" > www/index.html
+          echo "WEB_TARGET=www" >> $GITHUB_ENV;
         fi
     - name: Build Android APK with Capacitor
       run: |
+        cd ${{ env.PROJECT_DIR }}
         npm install -g @capacitor/cli @capacitor/android
-        npx cap init "Cosmic Riddle" "com.cosmic.riddle" --web-dir=${{ env.WEB_DIR }} --confirm || true
+        npm install @capacitor/core @capacitor/cli @capacitor/android --legacy-peer-deps || true
+        npx cap init "Cosmic Riddle" "com.cosmic.riddle" --web-dir=${{ env.WEB_TARGET }} --confirm || true
         npx cap add android || true
         npx cap sync || true
         if [ -d "android" ]; then
@@ -48,6 +58,5 @@ jobs:
       with:
         name: cosmic-riddle-apk
         path: |
-          android/app/build/outputs/apk/debug/app-debug.apk
-          **/build/outputs/apk/debug/*.apk
+          ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
           **/*.apk
